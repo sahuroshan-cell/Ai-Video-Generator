@@ -1,107 +1,69 @@
-# Educational Video Generator
+# educational-video
 
-> A **Claude Code skill** that turns any topic into a narrated, subtitled **educational video** —
-> using **code-driven animation** (Manim + Remotion) inside an agentic *render → verify → fix*
-> loop. Built for math, physics, CS, and algorithm explainers where correctness matters.
+A Claude Code skill that generates high-quality, consistent **educational** videos by writing
+and rendering **code** (Manim or Remotion) inside an agentic render-verify loop — rather than
+synthesizing pixels with text-to-video models, which can't hold logical/numeric/text rigor.
 
-Keywords: educational video generation · AI video generator · Manim · Remotion · Claude Code
-skill · text-to-video alternative · explainer videos · 3Blue1Brown-style animation.
+## What it does
 
----
+Topic or script → engine selection → storyboard → per-scene code → render → **RITL** error loop
++ **vision-critic** layout review → TTS voiceover → word-aligned subtitles → muxed `final.mp4`.
 
-## Why code-driven (not text-to-video)?
+Based on verified research (Code2Video tri-agent Planner/Coder/Critic; Renderer-in-the-Loop with
+doc-grounded retries raising render success to ~94%).
 
-End-to-end text-to-video models (Sora, Veo, Runway, Kling) score poorly on **educational**
-content — they can't hold logical, numeric, or textual rigor (equations drift, labels are wrong).
-This skill instead has the LLM **write and render code**, then a vision **critic** inspects the
-rendered frames and drives fixes. Based on the verified research pattern (Code2Video tri-agent
-Planner/Coder/Critic + Renderer-in-the-Loop with doc-grounded retries → ~94% render success).
+## How to use
 
-## What you get
+Just ask, e.g.:
+- "Make a 2-minute video explaining why e^(iπ) = −1"
+- "Turn this lesson script into an animated explainer with narration"
+- "Animate how binary search works"
 
-Ask in plain language → the skill produces a finished `final.mp4`:
+Claude Code will invoke this skill and walk the phases in `SKILL.md`, asking 2–3 clarifying
+questions, then bootstrapping and producing the video in a project folder under your workspace.
 
-```
-topic / script
-   └─► engine selection (Manim vs Remotion)
-        └─► storyboard.json
-             └─► per-scene code  ──► render ──► RITL error loop + vision critic
-                                                      └─► TTS voiceover ──► word-aligned subtitles
-                                                                              └─► muxed final.mp4
-```
+## Requirements
 
-- **Two co-equal engines:** Manim (Python — math/geometry/algorithms) and Remotion (React/TSX —
-  UI/text/data/branded explainers), auto-selected per topic.
-- **Full pipeline:** visuals + voiceover + subtitles, muxed and loudness-normalized.
-- **Self-correcting:** deterministic error retries + a vision critic that catches overlap,
-  off-screen, illegible text, and bad timing.
-- **Per-run TTS:** uses ElevenLabs/OpenAI if a key is set, else local **Piper** (offline).
-- **Auto-bootstrap:** creates a project scaffold + a pinned Python 3.12 venv and installs what's
-  missing on first run.
+Present on this machine: `uv`, Python 3.14 (a pinned **3.12** venv is created for Manim — 3.14
+breaks Manim), Node/npm, ffmpeg, LaTeX (pdflatex+dvisvgm), cairo, pango.
 
-## Install
+Installed on first run as needed: Manim (pip into the venv), Remotion (npm), TTS.
 
-**Requirements:** `uv`, Node.js + npm, `ffmpeg`, and (for Manim math) a LaTeX toolchain
-(`pdflatex` + `dvisvgm`), plus cairo/pango. Manim, Remotion, and TTS are installed automatically
-on first run.
+**Narration quality:** with no cloud key set, narration uses local **Piper** (offline). For
+better voices, set `ELEVENLABS_API_KEY` or `OPENAI_API_KEY` before running.
 
-```bash
-git clone https://github.com/<your-username>/educational-video-generator.git
-cd educational-video-generator
-./install.sh            # symlink the skill into ~/.claude/skills (use --copy to copy instead)
-```
-
-`install.sh` links `skills/educational-video` into `~/.claude/skills/`, making it available to
-Claude Code. Restart Claude Code (or start a new session) and the skill is discoverable.
-
-> Manual install: copy or symlink `skills/educational-video/` into `~/.claude/skills/`.
-
-## Usage
-
-Just ask Claude Code naturally:
-
-- *"Make a 2-minute video explaining why e^(iπ) = −1"*
-- *"Turn this lesson script into an animated explainer with narration"*
-- *"Animate how binary search works"*
-- *"Create a Remotion video walking through this API"*
-
-The skill asks 2–3 clarifying questions (duration, audience, narration), then bootstraps and
-produces the video in a project folder under your working directory. Re-invoking resumes from the
-last incomplete phase (state lives in `manifest.json`).
-
-**Better narration (optional):** set `ELEVENLABS_API_KEY` or `OPENAI_API_KEY` before running for
-higher-quality voices; otherwise local Piper is used.
-
-## Repository structure
+## Layout
 
 ```
-educational-video-generator/
-├── README.md                 # you are here
-├── install.sh                # link/copy the skill into ~/.claude/skills
-├── .gitignore
-└── skills/
-    └── educational-video/
-        ├── SKILL.md          # orchestration: phases, agent roles, loops, retry caps
-        ├── README.md         # skill-specific docs
-        ├── references/       # knowledge corpus (engine selection, schemas, patterns, verify loop, TTS, troubleshooting)
-        └── scripts/          # bootstrap, render, frame-extract, TTS, subtitle align, mux
+SKILL.md                  # orchestration: phases, agent roles, loops, retry caps
+references/               # knowledge corpus (read on demand)
+  engine-selection.md     # Manim vs Remotion heuristics
+  storyboard-schema.md    # storyboard.json contract
+  manim-patterns.md       # Manim snippets + error→fix table
+  remotion-patterns.md    # Remotion snippets + error→fix table
+  component-library.md     # reusable templates (both engines)
+  verify-loop.md          # RITL + vision-critic rubric
+  tts-setup.md            # provider detection + recipes
+  troubleshooting.md      # known failure modes + fixes
+scripts/                 # deterministic helpers
+  bootstrap.sh            # env setup (uv venv 3.12, Manim, Remotion, TTS)
+  detect_tts.py           # resolve TTS provider → JSON
+  new_project.sh          # per-run scaffold + manifest/storyboard stubs
+  validate_storyboard.py  # storyboard validation
+  render.sh               # unified render (manim|remotion)
+  extract_frames.sh       # critic frames (ffmpeg / remotion still)
+  tts.py                  # per-scene narration synthesis
+  align_subtitles.py      # .srt/.ass from word timings or forced alignment
+  mux.sh                  # concat + audio + loudnorm + subtitles → final.mp4
 ```
 
-## How it works (the loops)
+## Per-run output
 
-- **RITL (Renderer-in-the-Loop):** render → on error, retrieve the failing-symbol doc snippet →
-  minimal patch → re-render (≤5 tries/scene).
-- **Vision critic:** extract beat frames → read them as images → check overlap / safe-area /
-  legibility (incl. LaTeX rendered) / composition / timing → route targeted fixes (≤3 passes).
-- **Guardrails:** ≤40 cumulative re-renders/run, ≤6 critic frames/scene; soft-fail keeps best
-  effort and reports warnings.
+Created under your working dir as `<slug>/`: `manifest.json` (resumable run state),
+`storyboard.json`, `scenes/`, `audio/`, `output/{scene_*.mp4,subtitles.*,final.mp4}`, and a
+`.venv/` for Manim. Re-invoking the skill resumes from the last incomplete phase.
 
-## Scope
+## Scope (v1)
 
-Code-driven only (v1). AI text-to-video (Sora/Veo) and avatar tools (HeyGen/Synthesia) are out of
-scope — they reduce educational rigor — but are noted as optional B-roll/presenter add-ons.
-
-## Suggested GitHub topics
-
-`claude-code` · `claude-skill` · `educational-video` · `video-generation` · `manim` · `remotion`
-· `text-to-video` · `ai-video` · `explainer-videos` · `animation`
+Code-driven only. AI text-to-video (Sora/Veo) and avatars (HeyGen/Synthesia) are out of scope —
+noted as optional B-roll/presenter add-ons but not depended on.
