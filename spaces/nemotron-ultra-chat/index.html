@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nemotron 3 Ultra Chat</title>
+<style>
+  :root {
+    --bg: #f7f8f7; --panel: #ffffff; --text: #1a1d1a; --muted: #5f6b60;
+    --border: #dde3de; --accent: #2e7d32; --accent-fg: #ffffff;
+    --bubble-user: #e6f0e7; --bubble-bot: #f1f3f1; --code-bg: #eef1ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161a; --panel: #1b1e23; --text: #e7e9e6; --muted: #9aa39c;
+      --border: #2b2f2e; --accent: #6fbf73; --accent-fg: #0d1210;
+      --bubble-user: #223327; --bubble-bot: #23262b; --code-bg: #22252a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --panel: #1b1e23; --text: #e7e9e6; --muted: #9aa39c;
+    --border: #2b2f2e; --accent: #6fbf73; --accent-fg: #0d1210;
+    --bubble-user: #223327; --bubble-bot: #23262b; --code-bg: #22252a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--panel);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+  header a { color: var(--accent); }
+  #authArea { display: flex; align-items: center; gap: 8px; }
+  button {
+    font: inherit; border: 1px solid var(--border); background: var(--panel); color: var(--text);
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  main {
+    flex: 1; display: flex; max-width: 900px; width: 100%; margin: 0 auto; padding: 16px;
+    gap: 16px; min-height: 0;
+  }
+  #chatCol { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #messages {
+    flex: 1; overflow-y: auto; padding: 8px 4px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; line-height: 1.45; font-size: 14px; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.user { align-self: flex-end; background: var(--bubble-user); border-bottom-right-radius: 4px; }
+  .msg.bot { align-self: flex-start; background: var(--bubble-bot); border-bottom-left-radius: 4px; }
+  .msg code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  details.reasoning { margin-bottom: 6px; font-size: 12.5px; color: var(--muted); }
+  details.reasoning summary { cursor: pointer; }
+  details.reasoning blockquote {
+    margin: 6px 0 0; padding-left: 10px; border-left: 2px solid var(--border); white-space: pre-wrap;
+  }
+  #examples { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; }
+  #examples button { font-size: 12px; padding: 6px 10px; }
+  form#composer { display: flex; gap: 8px; padding: 8px 4px 0; border-top: 1px solid var(--border); margin-top: 8px; }
+  #composer textarea {
+    flex: 1; resize: none; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+    font: inherit; background: var(--panel); color: var(--text); min-height: 44px; max-height: 160px;
+  }
+  aside#settings {
+    width: 220px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 12px; padding: 12px;
+    background: var(--panel); font-size: 13px; align-self: flex-start;
+  }
+  aside#settings label { display: block; margin-top: 12px; color: var(--muted); font-size: 12px; }
+  aside#settings input[type="range"] { width: 100%; }
+  aside#settings .val { float: right; color: var(--text); }
+  aside#settings textarea#systemPrompt {
+    width: 100%; margin-top: 4px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+    background: var(--bg); color: var(--text); font: inherit; font-size: 12.5px; resize: vertical; min-height: 50px;
+  }
+  .checkbox-row { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+  .checkbox-row input { margin: 0; }
+  #status { font-size: 12px; color: var(--muted); padding: 4px; min-height: 1.2em; }
+  @media (max-width: 720px) {
+    main { flex-direction: column; }
+    aside#settings { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Nemotron 3 Ultra Chat</h1>
+    <p>
+      <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4" target="_blank" rel="noopener">nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4</a>
+      via Inference Providers (fireworks-ai) &middot; billed to your HF account
+    </p>
+  </div>
+  <div id="authArea"><button id="loginBtn" class="primary">Sign in with Hugging Face</button></div>
+</header>
+<main>
+  <div id="chatCol">
+    <div id="messages"></div>
+    <div id="examples"></div>
+    <div id="status"></div>
+    <form id="composer">
+      <textarea id="input" placeholder="Sign in to start chatting..." disabled rows="1"></textarea>
+      <button type="submit" class="primary" id="sendBtn" disabled>Send</button>
+    </form>
+  </div>
+  <aside id="settings">
+    <label>System prompt
+      <textarea id="systemPrompt" placeholder="Optional"></textarea>
+    </label>
+    <div class="checkbox-row">
+      <input type="checkbox" id="enableThinking" checked />
+      <label for="enableThinking" style="margin:0;display:inline;">Reasoning (enable_thinking)</label>
+    </div>
+    <label>Max tokens <span class="val" id="maxTokensVal">4096</span>
+      <input type="range" id="maxTokens" min="256" max="32000" step="256" value="4096" />
+    </label>
+    <label>Temperature <span class="val" id="temperatureVal">1.0</span>
+      <input type="range" id="temperature" min="0" max="2" step="0.05" value="1.0" />
+    </label>
+    <label>Top-p <span class="val" id="topPVal">0.95</span>
+      <input type="range" id="topP" min="0.05" max="1" step="0.05" value="0.95" />
+    </label>
+    <button id="resetBtn" style="margin-top:14px;width:100%;">Reset chat</button>
+  </aside>
+</main>
+
+<script type="module">
+import { oauthLoginUrl, oauthHandleRedirectIfPresent } from "https://cdn.jsdelivr.net/npm/@huggingface/hub@2.17.5/+esm";
+
+const MODEL_ID = "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4";
+const PROVIDER = "fireworks-ai";
+const ROUTER_URL = "https://router.huggingface.co/v1/chat/completions";
+const EXAMPLES = [
+  "What is 84 * 3 / 2?",
+  "Explain quantum computing in simple terms.",
+  "Write a Python function that returns the n-th prime, then analyse its complexity.",
+  "Tell me an interesting fact about the universe!",
+];
+
+const $ = (id) => document.getElementById(id);
+const messagesEl = $("messages"), statusEl = $("status"), input = $("input"),
+      sendBtn = $("sendBtn"), loginBtn = $("loginBtn"), authArea = $("authArea"),
+      examplesEl = $("examples");
+
+let accessToken = null;
+let history = []; // {role, content} pairs sent to the API (answer only, no reasoning)
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderInline(text) {
+  // minimal: escape, then turn `code` spans into <code>
+  return escapeHtml(text).replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+
+function addMessage(role, text) {
+  const div = document.createElement("div");
+  div.className = "msg " + (role === "user" ? "user" : "bot");
+  div.innerHTML = renderInline(text);
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+function addBotMessageShell() {
+  const div = document.createElement("div");
+  div.className = "msg bot";
+  const details = document.createElement("details");
+  details.className = "reasoning";
+  details.style.display = "none";
+  const summary = document.createElement("summary");
+  summary.textContent = "Reasoning...";
+  const quote = document.createElement("blockquote");
+  details.appendChild(summary);
+  details.appendChild(quote);
+  const answer = document.createElement("span");
+  div.appendChild(details);
+  div.appendChild(answer);
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return { div, details, summary, quote, answer };
+}
+
+function splitThink(raw) {
+  if (!raw.includes("<think>") && !raw.includes("</think>")) return ["", raw];
+  const [head, ...rest] = raw.split("</think>");
+  const reasoning = head.replace("<think>", "").trim();
+  return rest.length ? [reasoning, rest.join("</think>").trimStart()] : [reasoning, ""];
+}
+
+function setComposerEnabled(enabled) {
+  input.disabled = !enabled;
+  sendBtn.disabled = !enabled;
+  input.placeholder = enabled ? "Message Nemotron 3 Ultra..." : "Sign in to start chatting...";
+}
+
+function renderExamples() {
+  examplesEl.innerHTML = "";
+  EXAMPLES.forEach((ex) => {
+    const b = document.createElement("button");
+    b.textContent = ex.length > 40 ? ex.slice(0, 40) + "..." : ex;
+    b.title = ex;
+    b.onclick = () => { input.value = ex; input.focus(); };
+    examplesEl.appendChild(b);
+  });
+}
+
+async function initAuth() {
+  const result = await oauthHandleRedirectIfPresent();
+  if (result) {
+    accessToken = result.accessToken;
+    onLoggedIn(result.userInfo?.name || result.userInfo?.preferred_username);
+    return;
+  }
+  loginBtn.onclick = async () => {
+    window.location.href = await oauthLoginUrl({ scopes: "openid profile inference-api" });
+  };
+}
+
+function onLoggedIn(name) {
+  authArea.innerHTML = `<span style="font-size:13px;color:var(--muted);">Signed in${name ? " as " + escapeHtml(name) : ""}</span>`;
+  setComposerEnabled(true);
+  statusEl.textContent = "";
+}
+
+async function sendMessage(text) {
+  if (!accessToken) { statusEl.textContent = "Sign in first."; return; }
+  addMessage("user", text);
+  history.push({ role: "user", content: text });
+  setComposerEnabled(false);
+  statusEl.textContent = "Thinking...";
+
+  const systemPrompt = $("systemPrompt").value.trim();
+  const messages = systemPrompt ? [{ role: "system", content: systemPrompt }, ...history] : [...history];
+  const body = {
+    model: `${MODEL_ID}:${PROVIDER}`,
+    messages,
+    max_tokens: Number($("maxTokens").value),
+    temperature: Number($("temperature").value),
+    top_p: Number($("topP").value),
+    stream: true,
+    chat_template_kwargs: { enable_thinking: $("enableThinking").checked },
+  };
+
+  const shell = addBotMessageShell();
+  let reasoning = "", raw = "", reasoningShown = false;
+
+  try {
+    const resp = await fetch(ROUTER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`${resp.status} ${resp.statusText}: ${errText.slice(0, 300)}`);
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const payload = trimmed.slice(5).trim();
+        if (payload === "[DONE]") continue;
+        let chunk;
+        try { chunk = JSON.parse(payload); } catch { continue; }
+        const delta = chunk.choices?.[0]?.delta;
+        if (!delta) continue;
+        reasoning += delta.reasoning_content || delta.reasoning || "";
+        raw += delta.content || "";
+        const [inlineReasoning, answer] = splitThink(raw);
+        const fullReasoning = (reasoning + inlineReasoning).trim();
+        if (fullReasoning) {
+          shell.details.style.display = "";
+          shell.quote.textContent = fullReasoning;
+          if (answer && !reasoningShown) { shell.summary.textContent = "Reasoning"; reasoningShown = true; }
+        }
+        shell.answer.innerHTML = renderInline(answer);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+    }
+    const [, finalAnswer] = splitThink(raw);
+    history.push({ role: "assistant", content: finalAnswer || raw });
+    statusEl.textContent = "";
+  } catch (err) {
+    statusEl.textContent = "Error: " + err.message;
+    shell.answer.innerHTML = renderInline("(request failed - see status line)");
+  } finally {
+    setComposerEnabled(true);
+    input.focus();
+  }
+}
+
+$("composer").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  input.style.height = "auto";
+  sendMessage(text);
+});
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("composer").requestSubmit(); }
+});
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 160) + "px";
+});
+$("resetBtn").addEventListener("click", () => {
+  history = [];
+  messagesEl.innerHTML = "";
+  statusEl.textContent = "";
+});
+[["maxTokens", "maxTokensVal", (v) => v], ["temperature", "temperatureVal", (v) => Number(v).toFixed(2)], ["topP", "topPVal", (v) => Number(v).toFixed(2)]]
+  .forEach(([rangeId, labelId, fmt]) => {
+    const r = $(rangeId), l = $(labelId);
+    r.addEventListener("input", () => { l.textContent = fmt(r.value); });
+  });
+
+renderExamples();
+initAuth();
+</script>
+</body>
+</html>
