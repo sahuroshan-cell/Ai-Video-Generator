@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LTX-2 Video Demo</title>
+<style>
+  :root {
+    --bg: #f7f8f7; --panel: #ffffff; --text: #1a1d1a; --muted: #5f6b60;
+    --border: #dde3de; --accent: #3949ab;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161a; --panel: #1b1e23; --text: #e7e9e6; --muted: #9aa39c;
+      --border: #2b2f2e; --accent: #7986cb;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --panel: #1b1e23; --text: #e7e9e6; --muted: #9aa39c;
+    --border: #2b2f2e; --accent: #7986cb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--panel);
+  }
+  header h1 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+  header p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  header a { color: var(--accent); }
+  header code {
+    background: var(--border); padding: 1px 5px; border-radius: 4px; font-size: 11.5px;
+  }
+  #frameWrap { flex: 1; position: relative; min-height: 640px; }
+  iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+  }
+  #fallback {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: 10px; padding: 24px; text-align: center; background: var(--panel);
+  }
+  #fallback a {
+    color: #fff; background: var(--accent); padding: 10px 18px; border-radius: 8px;
+    text-decoration: none; font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>LTX-2 Video Demo</h1>
+  <p>
+    Embedding Lightricks' own hosted demo &mdash;
+    <a href="https://huggingface.co/spaces/Lightricks/LTX-2-3" target="_blank" rel="noopener">Lightricks/LTX-2-3</a>
+    (LTX-2.3 Distilled) &mdash; not run in this Space. See
+    <code>README.md</code> for why. Model: <a href="https://github.com/Lightricks/LTX-2" target="_blank" rel="noopener">Lightricks/LTX-2</a>.
+  </p>
+</header>
+<div id="frameWrap">
+  <iframe
+    id="ltxFrame"
+    src="https://lightricks-ltx-2-3.hf.space"
+    title="LTX-2.3 Distilled by Lightricks"
+    allow="fullscreen"
+    loading="lazy"
+  ></iframe>
+  <div id="fallback">
+    <p>This demo isn't loading inside the embed (some Spaces block iframes).</p>
+    <a href="https://huggingface.co/spaces/Lightricks/LTX-2-3" target="_blank" rel="noopener">Open it directly on Hugging Face &rarr;</a>
+  </div>
+</div>
+<script>
+  // If the iframe fails to load (e.g. blocked by frame-ancestors), show the fallback link.
+  const frame = document.getElementById("ltxFrame");
+  const fallback = document.getElementById("fallback");
+  let loaded = false;
+  frame.addEventListener("load", () => { loaded = true; });
+  setTimeout(() => {
+    if (!loaded) fallback.style.display = "flex";
+  }, 6000);
+</script>
+</body>
+</html>
