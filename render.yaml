@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: reel-forge
+    env: docker
+    dockerfilePath: ./webapp/Dockerfile
+    dockerContext: .
+    plan: standard
+    # ^ needs real RAM (PyTorch + Wav2Lip checkpoints loaded per render).
+    #   Free/starter tiers (512MB-1GB) will not run this - use standard or above.
+    healthCheckPath: /api/example-storyboard
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: videos

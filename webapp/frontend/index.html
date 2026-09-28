@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reel Forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#161a24; --surface:#1e2331; --surface-2:#262d40; --border:#3a4160;
+    --text:#edf0f7; --dim:#9aa2bd; --amber:#ffb020; --teal:#4fd1c5; --rec:#ff6a56;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    padding:24px 16px 60px;
+  }
+  .shell{max-width:900px; margin:0 auto;}
+  h1{font-family:"Bricolage Grotesque"; font-size:26px; margin:0 0 4px;}
+  .tagline{color:var(--dim); font-size:13.5px; margin-bottom:22px;}
+  .panel{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:16px;}
+  label{display:block; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;}
+  .field{margin-bottom:14px;}
+  input[type=file], select, textarea{
+    width:100%; background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:9px 10px; font:inherit; font-size:14px;
+  }
+  textarea{min-height:220px; font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.5;}
+  button{
+    font:inherit; font-weight:700; border-radius:9px; border:1px solid var(--amber);
+    background:var(--amber); color:#241500; padding:11px 18px; cursor:pointer; font-size:14px;
+  }
+  button:disabled{opacity:.5; cursor:not-allowed;}
+  .status{font-size:13px; color:var(--dim); margin-top:10px; white-space:pre-line;}
+  .status.err{color:var(--rec);}
+  .status.ok{color:var(--teal);}
+  video{width:100%; border-radius:10px; margin-top:14px; background:#000;}
+  .note{font-size:11.5px; color:var(--dim); margin-top:10px; line-height:1.5;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <h1>Reel Forge</h1>
+  <div class="tagline">Real photoreal lip-sync (Wav2Lip) inside animated scene templates. Rendered server-side; takes 1-3 minutes.</div>
+
+  <form class="panel" id="genForm">
+    <div class="row2">
+      <div class="field">
+        <label for="photo">Character photo</label>
+        <input type="file" id="photo" name="photo" accept="image/*" required>
+      </div>
+      <div class="field">
+        <label for="language">Narration language</label>
+        <select id="language" name="language">
+          <option value="en" selected>English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="storyboard">Storyboard</label>
+      <textarea id="storyboard" name="storyboard_text"></textarea>
+    </div>
+    <button type="submit" id="genBtn">Generate video</button>
+    <div class="status" id="status"></div>
+    <div class="note">No server-side AI writes the storyboard for you — that would need an API key this deployment doesn't hold. Edit the example above, or paste your own (one <code>## Title Card / Bullets / Flow / Stat / Outro</code> block per scene, same format Reel Forge's browser page uses).</div>
+  </form>
+
+  <div class="panel" id="resultPanel" style="display:none">
+    <video id="resultVideo" controls></video>
+  </div>
+</div>
+
+<script>
+const form = document.getElementById('genForm');
+const statusEl = document.getElementById('status');
+const genBtn = document.getElementById('genBtn');
+const resultPanel = document.getElementById('resultPanel');
+const resultVideo = document.getElementById('resultVideo');
+const storyboardEl = document.getElementById('storyboard');
+
+fetch('/api/example-storyboard').then(r => r.json()).then(d => { storyboardEl.value = d.text; });
+
+function setStatus(msg, cls) {
+  statusEl.textContent = msg || '';
+  statusEl.className = 'status' + (cls ? ' ' + cls : '');
+}
+
+async function poll(jobId) {
+  const r = await fetch(`/api/jobs/${jobId}`);
+  const d = await r.json();
+  if (d.status === 'error') {
+    setStatus('Failed: ' + d.error, 'err');
+    genBtn.disabled = false;
+    return;
+  }
+  if (d.status === 'done') {
+    setStatus('Done.', 'ok');
+    genBtn.disabled = false;
+    resultVideo.src = d.result_url || `/api/jobs/${jobId}/video`;
+    resultPanel.style.display = 'block';
+    return;
+  }
+  setStatus('Rendering… ' + (d.progress || d.status));
+  setTimeout(() => poll(jobId), 2500);
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  genBtn.disabled = true;
+  resultPanel.style.display = 'none';
+  setStatus('Uploading and starting render…');
+  const fd = new FormData(form);
+  try {
+    const r = await fetch('/api/generate', { method: 'POST', body: fd });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      setStatus('Could not start: ' + (d.detail || r.statusText), 'err');
+      genBtn.disabled = false;
+      return;
+    }
+    const d = await r.json();
+    poll(d.job_id);
+  } catch (err) {
+    setStatus('Request failed: ' + err.message, 'err');
+    genBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
